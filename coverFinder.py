@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup   # parse website source code
 from selenium import webdriver  # chrome driver
 from selenium.webdriver.chrome.options import Options
 import urllib.parse   # url encode
+import requests
+import re
 
 class CoverFinder:
     def __init__(self, book_name):
@@ -46,8 +48,18 @@ class CoverFinder:
 
         driver.close()
         return {"image_url": bookCover_url,
-                "title": bookTitle,
-                "author_name": authorName
-                 }
+                "title": bookTitle.strip(" "),
+                "author_name": authorName.strip(" ")
+                }
         
+    def getBookRealName(self):
+        response = requests.get(self.url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        bookName = soup.find('span', itemprop='name', role='heading')
+        # for example the name: Harry Potter and the Order of the Phoenix (Harry Potter, #5) has the unexpected (*) part
+        # so we have to strip it
+        # also strip the leading and trailing space 
+        bookName = re.sub(r"\s*\(.*\)", "", str(bookName.string))
+        return bookName.strip(" ")
+
         

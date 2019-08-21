@@ -7,12 +7,11 @@ import datetime
 from user import user
 from coverFinder import CoverFinder
 import re
+from BookStationDialogue import bookStationDialogue
 
 workers = {}
 
 def check_in(web_client: slack.WebClient, user_id: str, channel_id: str):
-    if user_id not in workers:
-        workers[user_id] = user(user_id)
     workers[user_id].check_in()
     
     message = {}
@@ -47,7 +46,7 @@ def get_working_hours(web_client: slack.WebClient, user_id: str, channel_id: str
     message["channel"] = channel_id
     message["username"] = "OfficeBot"
     
-    if user_id not in workers: 
+    if user_id not in workers.keys(): 
         message["text"] = "You have not check in yet!"
     else:
         message["text"] = "<@{0}>! You have worked for {1:.2f} hours until now.".format(user_id, workers[user_id].get_working_hours())
@@ -65,6 +64,7 @@ def put_book_cover(web_client: slack.WebClient, user_id: str, channel_id: str, b
                                 **book_info}]
     web_client.chat_postMessage(**message)
 
+dia = {}
 
 @slack.RTMClient.run_on(event="message")
 def reply(**payload):
@@ -77,20 +77,38 @@ def reply(**payload):
     channel_id = data.get("channel")
     user_id = data.get("user")
     text = data.get("text")
+    
+    # create user
+    if user_id not in workers:
+        workers[user_id] = user(user_id, channel_id)
+        dia[user_id] = None
 
-    if text and "ci" in text.lower():
-        return check_in(web_client, user_id, channel_id)
-    if text and "co" in text.lower():
-        return check_out(web_client, user_id, channel_id)
-    if text and "gl" in text.lower():
-        return get_working_hours(web_client, user_id, channel_id)
-    if text and re.search(r"^bf", text):
-        # strip the command 
-        text = re.sub(r"^bf\s*", "", text)
-        print(text)
-        book_name = " ".join(text.split(" "))
-        print("Book name: {0}".format(book_name))
-        return put_book_cover(web_client, user_id, channel_id, book_name)
+    if dia[user_id] == None:
+        if text and "ci" in text.lower():
+            return check_in(web_client, user_id, channel_id)
+        if text and "co" in text.lower():
+            return check_out(web_client, user_id, channel_id)
+        if text and "gl" in text.lower():
+            return get_working_hours(web_client, user_id, channel_id)
+        if text and re.search(r"^bf", text):
+            # strip the command 
+            text = re.sub(r"^bf\s*", "", text)
+            print(text)
+            # reduce space
+            book_name = " ".join(text.split(" "))
+            print("Book name: {0}".format(book_name))
+            return put_book_cover(web_client, user_id, channel_id, book_name)
+        
+        if text and re.search(r"^book", text):
+            dia[user_id] = bookStationDialogue(workers[user_id])
+            reply = dia[user_id].getReply(text)
+            web_client.chat_postMessage(**reply)
+    else:
+        reply = dia[user_id].getReply(text)
+        web_client.chat_postMessage(**reply)
+        # to see if it is quit or not
+        if dia[user_id].haveEmptyHandler():
+            dia[user_id] = None
     
 
 if __name__ == "__main__":
