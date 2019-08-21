@@ -10,6 +10,7 @@ import re
 from BookStationDialogue import bookStationDialogue
 
 workers = {}
+dia = {}
 
 def check_in(web_client: slack.WebClient, user_id: str, channel_id: str):
     workers[user_id].check_in()
@@ -26,7 +27,7 @@ def check_out(web_client: slack.WebClient, user_id: str, channel_id: str):
     message["username"] = "OfficeBot"
     
     if user_id not in workers or not workers[user_id].isWorking(): 
-        message["text"] = "You have not check in yet!"
+        message["text"] = "You have not check in yet! <@{0}>".format(user_id)
     else:
         workers[user_id].check_out()
         for key in workers.keys():
@@ -47,7 +48,7 @@ def get_working_hours(web_client: slack.WebClient, user_id: str, channel_id: str
     message["username"] = "OfficeBot"
     
     if user_id not in workers.keys(): 
-        message["text"] = "You have not check in yet!"
+        message["text"] = "You have not check in yet!<@{0}>".format(user_id)
     else:
         message["text"] = "<@{0}>! You have worked for {1:.2f} hours until now.".format(user_id, workers[user_id].get_working_hours())
    
@@ -63,8 +64,6 @@ def put_book_cover(web_client: slack.WebClient, user_id: str, channel_id: str, b
                                 'color': 'good',
                                 **book_info}]
     web_client.chat_postMessage(**message)
-
-dia = {}
 
 @slack.RTMClient.run_on(event="message")
 def reply(**payload):
@@ -84,11 +83,11 @@ def reply(**payload):
         dia[user_id] = None
 
     if dia[user_id] == None:
-        if text and "ci" in text.lower():
+        if text and re.search(r"^ci", text.lower()):
             return check_in(web_client, user_id, channel_id)
-        if text and "co" in text.lower():
+        if text and re.search(r"^co", text.lower()):
             return check_out(web_client, user_id, channel_id)
-        if text and "gl" in text.lower():
+        if text and re.search(r"^gl", text.lower()):
             return get_working_hours(web_client, user_id, channel_id)
         if text and re.search(r"^bf", text):
             # strip the command 
