@@ -1,7 +1,7 @@
 # Slack-bot
 A Slackbot.
 
-# Commands
+## Commands
 |Commands|Meaning|
 |---|---|
 |`ci`| Check in|
